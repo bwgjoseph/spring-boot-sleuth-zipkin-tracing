@@ -60,3 +60,27 @@ Let's see how it looks like in the [UI](http://localhost:9411/zipkin/)
 ![see](./resource/zipkin-trace-1.gif)
 
 Isn't it awesome? It only takes us a few setup and configuration and everything is nicely integrated
+
+## Tracing with RestTemplate
+
+In order to ensure it work with [RestTemplate](https://docs.spring.io/spring-cloud-sleuth/docs/current/reference/html/howto.html#how-to-make-components-work), we have to ensure that we do not create a new instance of `RestTemplate`, otherwise, it won't be able to [inject the interceptor](https://docs.spring.io/spring-cloud-sleuth/docs/current/reference/html/integrations.html#sleuth-http-client-rest-template-integration) to `RestTemplate`
+
+In this example, we will make a external API call to [pokeapi](https://pokeapi.co/) using [PokemonAPI](/src/main/java/com/bwgjoseph/springbootsleuthzipkintracing/external/PokemonAPI.java) class which will fetch information regarding a given pokemon in [PostController](/src/main/java/com/bwgjoseph/springbootsleuthzipkintracing/post/PostController.java)
+
+Notice that we now have 3 span which include the 2 API call we made. If we look closely, the child span include the parent span information like such
+
+```log
+// RestController GET POST
+Span ID: aa7e691be20e5898
+Parent ID: none
+
+// RestTemplate GET ditto
+Span ID: c68f6cabbe9a2aa6
+Parent ID: aa7e691be20e5898
+
+// RestTemplate GET clefairy
+Span ID: 961995d442547873
+Parent ID: aa7e691be20e5898
+```
+
+![see](./resource/zipkin-trace-2.gif)
