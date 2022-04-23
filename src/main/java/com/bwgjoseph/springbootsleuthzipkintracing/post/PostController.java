@@ -20,6 +20,7 @@ public class PostController {
 
     private final PokemonAPI pokemonAPI;
     private final PostMapper postMapper;
+    private final RandomService randomService;
 
     @GetMapping
     public Post get() {
@@ -40,6 +41,7 @@ public class PostController {
     @PostMapping
     public Post post(@RequestBody Post post) {
         this.postMapper.create(post);
+        this.randomService.getRandomInt();
 
         return this.postMapper.get(post.getId());
     }

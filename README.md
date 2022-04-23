@@ -141,3 +141,14 @@ And it would look like this
 Let's try with 2 different database call where I will run a `insert` and `select` and see how would it look like
 
 ![see](./resource/zipkin-trace-5.gif)
+
+## Managing Spans
+
+### Creating new span
+
+While it is easy to add and view the span across `RestTemplate` and `Datasource`, we have no visibility of each of the method calls within our application. It might not be necessary but we can do so if we ever need to using [@NewSpan](https://docs.spring.io/spring-cloud-sleuth/docs/current/reference/html/using.html#using-annotations-new-spans) annotation
+
+For that, we create a new [RandomService.getRandomInt()](src/main/java/com/bwgjoseph/springbootsleuthzipkintracing/post/RandomService.java) method and annotate it with `@NewSpan` and call this method when a `POST` request is triggered
+
+![see](./resource/zipkin-trace-6.gif)
+
