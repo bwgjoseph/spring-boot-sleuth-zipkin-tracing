@@ -84,3 +84,60 @@ Parent ID: aa7e691be20e5898
 ```
 
 ![see](./resource/zipkin-trace-2.gif)
+
+## Tracing with Datasource
+
+We will be using `Oracle database` and `MyBatis` to showcase this part of the demo
+
+### Adding dependencies
+
+- Open `build.gradle`
+- Add the following to `dependencies` section
+
+```groovy
+implementation 'org.mybatis.spring.boot:mybatis-spring-boot-starter:2.2.2'
+runtimeOnly 'com.oracle.database.jdbc:ojdbc10:19.11.0.0'
+runtimeOnly "p6spy:p6spy:3.9.1"
+```
+
+### Setup Oracle Database
+
+- Navigate to `/docker`
+- Run `docker-compose up -d`
+- Be patient, oracle will take some time to start
+- Once started, it will initialize with
+  - user: `SLEUTH_DEV`
+  - password: `password1`
+- And create a table `Post`
+  - See [post-table](./docker/setup/02_create_table.sql) for table details
+
+### Connect to Oracle DB
+
+Add the following config to `application.properties`
+
+```properties
+spring.datasource.driver-class-name=oracle.jdbc.OracleDriver
+spring.datasource.url=jdbc:oracle:thin:@localhost:1521/ORCLPDB1
+spring.datasource.username=sleuth_dev
+spring.datasource.password=password1
+```
+
+### Tracing
+
+In order to see the tracing, we will create a `POST` request so to be able to see the trace from `Controller` to `Database`
+
+![see](./resource/zipkin-trace-3.gif)
+
+Now, we have a new datasource `span` which also includes showing `jdbc.query`. Notice that the `query` does not display the value that was inserted but if we want to, we need to turn on via configuration
+
+```properties
+spring.sleuth.jdbc.p6spy.tracing.include-parameter-values=true
+```
+
+And it would look like this
+
+![see](./resource/zipkin-trace-4.jpg)
+
+Let's try with 2 different database call where I will run a `insert` and `select` and see how would it look like
+
+![see](./resource/zipkin-trace-5.gif)
