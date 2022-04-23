@@ -1,0 +1,9 @@
+version: '3.7'
+
+services:
+  zipkin:
+    image: openzipkin/zipkin:2.23
+    container_name: sleuth-zipkin
+    restart: unless-stopped
+    ports:
+      - "9411:9411"
