@@ -43,6 +43,13 @@ services:
       # To enable archive log mode when creating the database (default: false).
       # ENABLE_ARCHIVELOG: "0"
 
+  rabbitmq:
+    image: rabbitmq:3.9.15-management
+    container_name: sleuth-zipkin-rabbitmq
+    restart: unless-stopped
+    ports:
+      - "5672:5672"
+      - "15672:15672"
 volumes:
   oracle_data:
       # external: true // Specify if you wish to create yourself

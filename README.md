@@ -142,6 +142,74 @@ Let's try with 2 different database call where I will run a `insert` and `select
 
 ![see](./resource/zipkin-trace-5.gif)
 
+## Tracing with Messaging
+
+### RabbitMQ
+
+#### Adding dependencies
+
+- Open `build.gradle`
+- Add the following to `dependencies` section
+
+```groovy
+implementation 'org.springframework.amqp:spring-rabbit'
+implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310'
+```
+
+We added `jackson-datatype-jsr310` because we need to support Java 8 date/time type as we are using `LocalDateTime`
+
+#### Setup RabbitMQ
+
+Adding `RabbitMQ` was pretty straightforward, look at the changes to [docker-compose](docker/docker-compose.yml). Once started, you can access it from http://localhost:15672
+
+#### Configure RabbitMQ
+
+We added [RabbitMQConfig](src/main/java/com/bwgjoseph/springbootsleuthzipkintracing/rabbitmq/RabbitMQConfig.java) to create a `queue` and configure it to register `Jackson2JsonMessageConverter`, otherwise, it would be using `SimpleMessageConverter` and we can't convert and send our `Post` object. We know that `Spring Boot` detects `jackson-datatype-jsr310` in the classpath, it will automatically register the `TimeModule` into the default `ObjectMapper` instance. However, even after we have done so, when we try to send out the message to `RabbitMQ`, we will still encounter this error
+
+```log
+2022-04-24 00:42:27.049 ERROR [sbszipkintracing,3d97cd15b1fcaf51,3d97cd15b1fcaf51] 14960 --- [nio-8080-exec-3] o.a.c.c.C.[.[.[/].[dispatcherServlet]
+   : Servlet.service() for servlet [dispatcherServlet] in context with path [] threw exception [Request processing failed; nested exception is org.springframework.amqp.support.converter.MessageConversionException: Failed to convert Message content] with root cause
+
+com.fasterxml.jackson.databind.exc.InvalidDefinitionException: Java 8 date/time type `java.time.LocalDateTime` not supported by default: add Module "com.fasterxml.jackson.datatype:jackson-datatype-jsr310" to enable handling (through reference chain: com.bwgjoseph.springbootsleuthzipkintracing.post.Post["createdAt"])
+        at com.fasterxml.jackson.databind.exc.InvalidDefinitionException.from(InvalidDefinitionException.java:77) ~[jackson-databind-2.13.2.1.jar:2.13.2.1]
+```
+
+So what actually happens?
+
+Turns out, if you call the constructor of `Jackson2JsonMessageConverter`, it will call another constructor which will initialise a new instance of `ObjectMapper` instead of using the one `Spring Boot` configures
+
+```java
+// called from the default no-arg constructor
+public Jackson2JsonMessageConverter(String... trustedPackages) {
+  // notice this
+  this(new ObjectMapper(), trustedPackages);
+  this.objectMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+}
+```
+
+So to prevent this, and to use what `Spring Boot` configures, we have to pass in that `ObjectMapper` instance
+
+```java
+@Bean
+public Jackson2JsonMessageConverter jsonConverter(ObjectMapper objectMapper) {
+    return new Jackson2JsonMessageConverter(objectMapper);
+}
+```
+
+And if we run it now, everything should work prefectly
+
+#### Tracing
+
+In order to see the trace in action, we need to bring in `RabbitTemplate` and calls the `convertAndSend` method. We will add this in the `POST` method again
+
+![see](./resource/zipkin-trace-7.gif)
+
+However, tracing is messaging is not limited to just sending out but also when receiving the message
+
+We added a [listen](src/main/java/com/bwgjoseph/springbootsleuthzipkintracing/post/PostController.java) method in `PostController` and this is how it look like in the UI
+
+![see](./resource/zipkin-trace-8.gif)
+
 ## Managing Spans
 
 ### Creating new span
