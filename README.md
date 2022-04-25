@@ -260,6 +260,28 @@ We added a [listen](src/main/java/com/bwgjoseph/springbootsleuthzipkintracing/po
 
 ![see](./resource/zipkin-trace-8.gif)
 
+## Tracing with Spring Transaction
+
+Based on the [docs](https://docs.spring.io/spring-cloud-sleuth/docs/current/reference/htmlsingle/spring-cloud-sleuth.html#sleuth-tx-integration), any Spring Transaction would automatically create a new span
+
+In order to test it, we create [PostService](src/main/java/com/bwgjoseph/springbootsleuthzipkintracing/post/PostService.java) - create method with `@Transactional` annotation where the flow will now be
+
+```
+PostController > PostService > PostMapper
+```
+
+With `Transaction`
+
+![see](./resource/zipkin-trace-9.gif)
+
+And the difference with the previous one
+
+Without `Transaction`
+
+![see](./resource/zipkin-trace-8.gif)
+
+Is that you see the `transaction` information when clicked on the `span`
+
 ## Managing Spans
 
 ### Creating new span

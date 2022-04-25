@@ -23,7 +23,7 @@ import lombok.extern.slf4j.Slf4j;
 public class PostController {
 
     private final PokemonAPI pokemonAPI;
-    private final PostMapper postMapper;
+    private final PostService postService;
     private final RandomService randomService;
     private final RabbitTemplate rabbitTemplate;
 
@@ -45,11 +45,11 @@ public class PostController {
 
     @PostMapping
     public Post post(@RequestBody Post post) {
-        this.postMapper.create(post);
+        this.postService.create(post);
         this.randomService.getRandomInt();
         this.rabbitTemplate.convertAndSend("sleuth-queue", post);
 
-        return this.postMapper.get(post.getId());
+        return this.postService.get(post.getId());
     }
 
     @RabbitListener(queues = "sleuth-queue")
