@@ -270,3 +270,17 @@ For that, we create a new [RandomService.getRandomInt()](src/main/java/com/bwgjo
 
 ![see](./resource/zipkin-trace-6.gif)
 
+## Request Sampling
+
+It is not a good idea to trace all requests as it would affect the performance in production especially if you have a high traffic service. Hence, we can use
+
+```properties
+# default and max is 1.0 (100%), 0.1 = 10%
+spring.sleuth.sampler.probability=0.1
+# max 10 request per second, protect against surge request
+spring.sleuth.sampler.rate=10
+```
+
+To adjust how much of the request we want to trace
+
+> In development/staging, we may want to trace all request
