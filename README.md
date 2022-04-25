@@ -330,6 +330,43 @@ And the trace would look like this
 
 The key difference would be that now the `insert` and `select` is now under the same `transaction span` parentId
 
+## Tracing with Spring Security
+
+### Adding dependencies
+
+- Open `build.gradle`
+- Add the following to `dependencies` section
+
+```groovy
+implementation 'org.springframework.boot:spring-boot-starter-security'
+```
+
+### Run with default config
+
+Without making any changes to the application, let's try to make a `POST` request after adding `spring-security` depedency
+
+![see](./resource/zipkin-trace-11.jpg)
+
+The client would encounter `401 - Unauthorized` error
+
+#### Setup WebSecurityConfig
+
+In order to allow the request to go through with `Spring Security` enabled, we need to make add [WebSecurityConfig](src/main/java/com/bwgjoseph/springbootsleuthzipkintracing/security/WebSecurityConfig.java) to disable `csrf`
+
+
+```java
+@Configuration
+public class WebSecurityConfig {
+    @Bean
+    SecurityFilterChain web(HttpSecurity http) throws Exception {
+        // disable it otherwise, all request would be forbidden
+        http.csrf().disable();
+
+        return http.build();
+    }
+}
+```
+
 ## Managing Spans
 
 ### Creating new span
