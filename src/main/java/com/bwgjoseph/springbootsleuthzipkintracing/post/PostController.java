@@ -45,11 +45,11 @@ public class PostController {
 
     @PostMapping
     public Post post(@RequestBody Post post) {
-        this.postService.create(post);
         this.randomService.getRandomInt();
-        this.rabbitTemplate.convertAndSend("sleuth-queue", post);
+        Post createdPost = this.postService.create(post);
+        this.rabbitTemplate.convertAndSend("sleuth-queue", createdPost);
 
-        return this.postService.get(post.getId());
+        return createdPost;
     }
 
     @RabbitListener(queues = "sleuth-queue")

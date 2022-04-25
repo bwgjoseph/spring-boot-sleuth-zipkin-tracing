@@ -264,6 +264,8 @@ We added a [listen](src/main/java/com/bwgjoseph/springbootsleuthzipkintracing/po
 
 Based on the [docs](https://docs.spring.io/spring-cloud-sleuth/docs/current/reference/htmlsingle/spring-cloud-sleuth.html#sleuth-tx-integration), any Spring Transaction would automatically create a new span
 
+### Part 1
+
 In order to test it, we create [PostService](src/main/java/com/bwgjoseph/springbootsleuthzipkintracing/post/PostService.java) - create method with `@Transactional` annotation where the flow will now be
 
 ```
@@ -281,6 +283,52 @@ Without `Transaction`
 ![see](./resource/zipkin-trace-8.gif)
 
 Is that you see the `transaction` information when clicked on the `span`
+
+### Part 2
+
+In this section, we make some changes to the code where
+
+- `Controller` now call the `Service` to create `Post` and within the create, it will return the `Post` object instead of having `Controller` to call two separate method call
+
+```java
+// before
+// controller
+public Post post(@RequestBody Post post) {
+    this.postService.create(post);
+    this.randomService.getRandomInt();
+    this.rabbitTemplate.convertAndSend("sleuth-queue", post);
+
+    return this.postService.get(post.getId());
+}
+
+// service
+public Integer create(Post post) {
+    return this.postMapper.create(post);
+}
+
+// after
+// controller
+public Post post(@RequestBody Post post) {
+    this.randomService.getRandomInt();
+    Post createdPost = this.postService.create(post);
+    this.rabbitTemplate.convertAndSend("sleuth-queue", createdPost);
+
+    return createdPost;
+}
+
+// service
+public Post create(Post post) {
+    this.postMapper.create(post);
+
+    return this.get(post.getId());
+}
+```
+
+And the trace would look like this
+
+![see](./resource/zipkin-trace-10.gif)
+
+The key difference would be that now the `insert` and `select` is now under the same `transaction span` parentId
 
 ## Managing Spans
 

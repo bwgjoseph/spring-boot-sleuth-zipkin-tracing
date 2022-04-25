@@ -15,7 +15,9 @@ public class PostService {
     }
 
     @Transactional
-    public Integer create(Post post) {
-        return this.postMapper.create(post);
+    public Post create(Post post) {
+        this.postMapper.create(post);
+
+        return this.get(post.getId());
     }
 }
