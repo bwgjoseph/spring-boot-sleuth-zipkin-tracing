@@ -36,6 +36,56 @@ And when you restart the application, the log will be display as
 
 But because we haven't triggered any request yet, hence, there will not be any `trace/span id`
 
+## Zipkin Configuration
+
+The list of `Zipkin` configuration can be found in [here](https://docs.spring.io/spring-cloud-sleuth/docs/current/reference/htmlsingle/spring-cloud-sleuth.html#common-application-properties)
+
+A few key ones to take note are
+
+```properties
+spring.zipkin.service.name=sbszipkintracingapp
+spring.zipkin.baseUrl=localhost:9411
+spring.zipkin.sender.type=web
+```
+
+We only focus on the set that affects how the span are sent to [Zipkin](https://docs.spring.io/spring-cloud-sleuth/docs/current/reference/htmlsingle/spring-cloud-sleuth.html#features-zipkin)
+
+### spring.zipkin.baseUrl
+
+The default url would be configured to `http://localhost:9411/` and as such, there is no need to configure it when testing locally (with default setup), but if you use a different port, or want to send your span to hosted `Zipkin` service, you would need to update this config
+
+### spring.zipkin.sender.type
+
+Span can be sent via `HTTP` or `Messaging` (Kafka, RabbitMQ, ActiveMQ) so this config allow you to configure that. Note that in the docs, it mentioned that if you have `spring-rabbit` in your classpath, you would have to choose between `web` or `rabbitmq` as the sender type but in my case, even when I have `rabbitmq` in the classpath, I did not have to specify in the `application.properties` and it seem that the default is `web`
+
+> I tried to switch to use rabbit but was unable to make it work even after adding `spring.zipkin.rabbitmq.queue`
+
+With further test trial, you would need to configure at least the following config
+
+```properties
+spring.zipkin.sender.type=rabbit
+spring.zipkin.rabbitmq.addresses=http://localhost:5672/
+spring.zipkin.rabbitmq.queue=zipkinrabbit
+```
+
+For it to report a failure due to configuration
+
+```log
+2022-04-25 12:21:26.275  WARN [sbszipkintracingrabbitapp,,] 8340 --- [=zipkinrabbit}}] z.r.AsyncReporter$BoundedAsyncReporter   : Spans were dropped due to exceptions. All subsequent errors will be logged at FINE level.
+2022-04-25 12:21:26.283  WARN [sbszipkintracingrabbitapp,,] 8340 --- [=zipkinrabbit}}] z.r.AsyncReporter$BoundedAsyncReporter   : Dropped 10 spans due to RuntimeException(Unable to establish connection to RabbitMQ server)
+
+java.lang.RuntimeException: Unable to establish connection to RabbitMQ server
+Caused by: java.net.UnknownHostException: No such host is known (http)
+```
+
+### spring.zipkin.service.name
+
+The service name identified by `Zipkin` can be overwritten via `spring.zipkin.service.name` property. If you defined both `spring.application.name` and `spring.zipkin.service.name`, the latter will take precedent
+
+```log
+2022-04-25 11:25:47.893  INFO [sbszipkintracing2,,] 14320 --- [  restartedMain] SpringBootSleuthZipkinTracingApplication : Started SpringBootSleuthZipkinTracingApplication in 13.119 seconds (JVM running for 17.413)
+```
+
 ## Add Controller
 
 In order to see the `trace/span id` in action, let's create [PostController](/src/main/java/com/bwgjoseph/springbootsleuthzipkintracing/PostController.java) to allow for `REST API` call. Once created, we can trigger a `GET` call via
