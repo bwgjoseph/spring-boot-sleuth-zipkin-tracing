@@ -284,3 +284,116 @@ spring.sleuth.sampler.rate=10
 To adjust how much of the request we want to trace
 
 > In development/staging, we may want to trace all request
+
+## Working with Logback
+
+The [docs](https://docs.spring.io/spring-cloud-sleuth/docs/current/reference/htmlsingle/spring-cloud-sleuth.html#features-log-integration-json-logback) includes the section on how to configure `logback with logstash` and we will take some reference from there
+
+If you need to log to `JSON` appender with `logstash`, I have written an [article](https://bwgjoseph.com/how-to-configure-spring-logback-to-pipe-logs-to-different-appenders-using-profile-specific-configuration-extension) about it where you will learn more about configuring `logback`
+
+### Adding dependencies
+
+- Open `build.gradle`
+- Add the following to `dependencies` section
+
+```groovy
+implementation 'net.logstash.logback:logstash-logback-encoder:7.0.1'
+```
+
+### Setup logback
+
+- Create [logback-spring.xml](src/main/resources/logback-spring.xml) in `/src/main/resources` with this content
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <!-- Create a appender to output JSON log format -->
+    <appender name="JSON" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder class="net.logstash.logback.encoder.LogstashEncoder" />
+    </appender>
+
+    <logger name="com.bwgjoseph.springbootsleuthzipkintracing" additivity="false" level="debug">
+        <appender-ref ref="JSON" />
+    </logger>
+
+    <root level="INFO">
+        <appender-ref ref="JSON" />
+    </root>
+</configuration>
+```
+
+- Restart the app, and you should see that the log has changed
+
+```log
+// from
+2022-04-25 14:05:46.439  INFO [sbszipkintracingapp,,] 30032 --- [  restartedMain] SpringBootSleuthZipkinTracingApplication : Started SpringBootSleuthZipkinTracingApplication in 5.493 seconds (JVM running for 637.658)
+
+// to
+{"@timestamp":"2022-04-25T14:03:18.785+08:00","@version":"1","message":"Started SpringBootSleuthZipkinTracingApplication in 6.104 seconds (JVM running for 490.004)","logger_name":"com.bwgjoseph.springbootsleuthzipkintracing.SpringBootSleuthZipkinTracingApplication","thread_name":"restartedMain","level":"INFO","level_value":20000}
+```
+
+Everything looks the same except for the format and we are missing tracing information `[sbszipkintracingapp,,]` in the JSON log. But if we make a `POST` request and view the log again, this time, the tracing information would appear in the log except `application name`
+
+```log
+{"@timestamp":"2022-04-25T14:07:26.679+08:00","@version":"1","message":"Post(id=45, title=por, body=was, createdAt=2022-04-23T19:33:04.996742400, createdBy=por, updatedAt=2022-04-23T19:33:04.996742400, updatedBy=por)","logger_name":"com.bwgjoseph.springbootsleuthzipkintracing.post.PostController","thread_name":"org.springframework.amqp.rabbit.RabbitListenerEndpointContainer#0-1","level":"INFO","level_value":20000,"traceId":"c0e2486848b98aea","spanId":"3e821993758b0e34"}
+{"@timestamp":"2022-04-25T14:07:26.68+08:00","@version":"1","message":"<==      Total: 1","logger_name":"com.bwgjoseph.springbootsleuthzipkintracing.post.PostMapper.get","thread_name":"http-nio-8080-exec-3","level":"DEBUG","level_value":10000,"traceId":"c0e2486848b98aea","spanId":"6da55372397d15fc","tags":["MYBATIS"]}
+```
+
+And that is because we need to tell `logback` to read the property by adding this line to `logback-spring.xml`
+
+```xml
+<springProperty scope="context" name="springAppName" source="spring.zipkin.service.name"/>
+```
+
+> Note that the source could be either `spring.application.name` or `spring.zipkin.service.name`
+
+Right after we added it, and restart the app, the default log would look like
+
+```log
+{"@timestamp":"2022-04-25T14:11:37.632+08:00","@version":"1","message":"Started SpringBootSleuthZipkinTracingApplication in 5.143 seconds (JVM running for 988.85)","logger_name":"com.bwgjoseph.springbootsleuthzipkintracing.SpringBootSleuthZipkinTracingApplication","thread_name":"restartedMain","level":"INFO","level_value":20000,"springAppName":"sbszipkintracingapp"}
+```
+
+Notice that it is now appended with `springAppName` information. And after we make a `POST` request
+
+```log
+{"@timestamp":"2022-04-25T14:12:53.885+08:00","@version":"1","message":"Post(id=46, title=por, body=was, createdAt=2022-04-23T19:33:04.996742400, createdBy=por, updatedAt=2022-04-23T19:33:04.996742400, updatedBy=por)","logger_name":"com.bwgjoseph.springbootsleuthzipkintracing.post.PostController","thread_name":"org.springframework.amqp.rabbit.RabbitListenerEndpointContainer#0-1","level":"INFO","level_value":20000,"springAppName":"sbszipkintracingapp","traceId":"88bae4e1ce13af4c","spanId":"4a58243e3a2aaf78"}
+{"@timestamp":"2022-04-25T14:12:53.886+08:00","@version":"1","message":"<==      Total: 1","logger_name":"com.bwgjoseph.springbootsleuthzipkintracing.post.PostMapper.get","thread_name":"http-nio-8080-exec-2","level":"DEBUG","level_value":10000,"springAppName":"sbszipkintracingapp","traceId":"88bae4e1ce13af4c","spanId":"a8a8a22b267bda9f","tags":["MYBATIS"]}
+```
+
+But what if we want the same logging pattern as the `CONSOLE` by default? In that case, we would need to change the `encoder` from `LogstashEncoder` to `LoggingEventCompositeJsonEncoder` and define the exact parameters we want to display
+
+```xml
+<appender name="JSON" class="ch.qos.logback.core.ConsoleAppender">
+  <encoder class="net.logstash.logback.encoder.LoggingEventCompositeJsonEncoder">
+    <providers>
+      <timestamp>
+        <timeZone>UTC+8</timeZone>
+      </timestamp>
+      <pattern>
+        <pattern>
+          {
+            "timestamp": "@timestamp",
+            "severity": "%level",
+            "service": "${springAppName:-}",
+            "trace": "%X{traceId:-}",
+            "span": "%X{spanId:-}",
+            "pid": "${PID:-}",
+            "thread": "%thread",
+            "class": "%logger{40}",
+            "rest": "%message"
+          }
+        </pattern>
+      </pattern>
+    </providers>
+  </encoder>
+</appender>
+```
+
+The log you would have gotten will be
+
+```log
+{"@timestamp":"2022-04-25T14:22:09.313+08:00","timestamp":"@timestamp","severity":"INFO","service":"sbszipkintracingapp","trace":"","span":"","pid":"30032","thread":"restartedMain","class":"c.b.s.SpringBootSleuthZipkinTracingApplication","rest":"Started SpringBootSleuthZipkinTracingApplication in 5.783 seconds (JVM running for 1620.532)"}
+{"@timestamp":"2022-04-25T14:25:14.471+08:00","timestamp":"@timestamp","severity":"INFO","service":"sbszipkintracingapp","trace":"e35fabf6fc8701bf","span":"d9f853d98e14db7f","pid":"30032","thread":"org.springframework.amqp.rabbit.RabbitListenerEndpointContainer#0-1","class":"c.b.s.post.PostController","rest":"Post(id=48, title=por, body=was, createdAt=2022-04-23T19:33:04.996742400, createdBy=por, updatedAt=2022-04-23T19:33:04.996742400, updatedBy=por)"}
+```
+
+Now that even without making any `POST` request, the `trace` and `span` will always be shown as empty string (like in `CONSOLE` appender)
