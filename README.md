@@ -367,6 +367,56 @@ public class WebSecurityConfig {
 }
 ```
 
+Once added, we can continue to make the request as per normal (before `spring-security` was introduced)
+
+Question is; what does it mean to have span for `Spring Security`? I have no idea so I asked on [twitter](https://twitter.com/JosephGan/status/1518502480073568258) since that it doesn't seem to add any sort of annotation to the current request span even with `spring-security` added.
+
+### Authenticated Endpoint
+
+Apparently, what it does is to have [TracingSecurityContextChangedListener](https://github.com/spring-cloud/spring-cloud-sleuth/blob/3.1.x/spring-cloud-sleuth-instrumentation/src/main/java/org/springframework/cloud/sleuth/instrument/security/TracingSecurityContextChangedListener.java) which set event when `SecurityContextChangedEvent` changes
+
+#### Post Request
+
+Before we make the `POST` request, we need to enable `httpBasic` and `authorization` config in [WebSecurityConfig](src/main/java/com/bwgjoseph/springbootsleuthzipkintracing/security/WebSecurityConfig.java) first
+
+```java
+@Bean
+SecurityFilterChain web(HttpSecurity http) throws Exception {
+    // disable it otherwise, all request would be forbidden
+    http.csrf().disable();
+
+    // ensure only authenticated user can make api request
+    http.authorizeHttpRequests(authorize -> authorize.anyRequest().authenticated());
+
+    // support basic authentication
+    http.httpBasic();
+
+    return http.build();
+}
+```
+
+So if we make an `POST` request to a authenticated endpoint, sleuth would enrich it with annotation
+
+![see](./resource/zipkin-trace-12.gif)
+
+However, it seem that in order for it to work properly, I have to add the following to [WebSecurityConfig](src/main/java/com/bwgjoseph/springbootsleuthzipkintracing/security/WebSecurityConfig.java) constructor
+
+```java
+public WebSecurityConfig(List<SecurityContextChangedListener> securityContextChangedListeners) {
+  SecurityContextHolderStrategy strategy = new ListeningSecurityContextHolderStrategy(
+      SecurityContextHolder.getContextHolderStrategy(), securityContextChangedListeners);
+  SecurityContextHolder.setContextHolderStrategy(strategy);
+}
+```
+
+#### Get Request
+
+If we were to make a `GET` request, it will look like
+
+![see](./resource/zipkin-trace-13.gif)
+
+> Unsure why `POST` request did not have the clear security context annotation event
+
 ## Managing Spans
 
 ### Creating new span
