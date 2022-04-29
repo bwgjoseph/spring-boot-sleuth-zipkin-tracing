@@ -50,6 +50,25 @@ services:
     ports:
       - "5672:5672"
       - "15672:15672"
+
+  jaeger:
+    image: jaegertracing/all-in-one:1.33.0
+    container_name: sleuth-zipkin-jaeger
+    restart: unless-stopped
+    volumes:
+      - jaeger_data:/tmp
+    ports:
+      # configs
+      - "5778:5778"
+      # frontend
+      - "16686:16686"
+      # zipkin compatible
+      - "9422:9411"
+    environment:
+      COLLECTOR_ZIPKIN_HOST_PORT: 9411
+
 volumes:
   oracle_data:
-      # external: true // Specify if you wish to create yourself
+    # external: true // Specify if you wish to create yourself
+  jaeger_data:
+    # external: true // Specify if you wish to create yourself

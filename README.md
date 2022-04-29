@@ -554,3 +554,21 @@ The log you would have gotten will be
 ```
 
 Now that even without making any `POST` request, the `trace` and `span` will always be shown as empty string (like in `CONSOLE` appender)
+
+## Using Jaeger
+
+`Jaeger` was initially an implementation of [OpenTracing](https://opentracing.io/) which has since been archived and merged into [OpenTelemetry](https://opentelemetry.io/) (OTEL). `OTEL` aim to provides a single set of APIs and libraries that standardise how you collect and transfer telemetry data.
+
+`Jaeger` is also an alternative to `Zipkin` as the centralized distributed tracing UI. `Jaeger` expose [Zipkin compatible endpoint](https://www.jaegertracing.io/docs/1.33/getting-started/#all-in-one) which makes it easy for us to switch from `Zipkin` to `Jaeger` without any change to our application at all (or one line of change if we want to use a different port)
+
+![see](./resource/zipkin-trace-14.jpg)
+
+I feel that `Zipkin` UI seem to be more friendly on viewing information, but `Jaeger` UI is more modern and comes with slightly more feature such as
+
+- Comparing Trace
+
+![see](./resource/zipkin-trace-16.gif)
+
+- Trace Graph
+
+![see](./resource/zipkin-trace-15.jpg)
