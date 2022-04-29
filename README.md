@@ -563,6 +563,8 @@ Now that even without making any `POST` request, the `trace` and `span` will alw
 
 ![see](./resource/zipkin-trace-14.jpg)
 
+![see](./resource/zipkin-trace-17.gif)
+
 I feel that `Zipkin` UI seem to be more friendly on viewing information, but `Jaeger` UI is more modern and comes with slightly more feature such as
 
 - Comparing Trace
