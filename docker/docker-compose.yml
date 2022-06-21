@@ -7,6 +7,42 @@ services:
     restart: unless-stopped
     ports:
       - "9411:9411"
+    environment:
+      - STORAGE_TYPE=elasticsearch
+      # Point the zipkin at the storage backend
+      - ES_HOSTS=elasticsearch
+      # Uncomment to see requests to and from elasticsearch
+      - ES_HTTP_LOGGING=BODY
+    networks:
+      - tracing
+    depends_on:
+      - elasticsearch
+    # Uncomment to enable debug logging
+    # command: --logging.level.zipkin2=DEBUG
+
+  dependencies:
+    image: ghcr.io/openzipkin/zipkin-dependencies:2.6.4
+    container_name: sleuth-elastic-dependencies
+    entrypoint: crond -f
+    environment:
+      - STORAGE_TYPE=elasticsearch
+      - ES_HOSTS=elasticsearch
+    networks:
+      - tracing
+    depends_on:
+      - elasticsearch
+
+  elasticsearch:
+    image: bitnami/elasticsearch:7.17.4
+    container_name: sleuth-elasticsearch
+    # Uncomment to expose the storage port for testing
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    networks:
+      - tracing
+    volumes:
+      - elastic_data:/bitnami/elasticsearch/data
 
   oracle:
     image: oracledb:19.3.0-ee
@@ -16,6 +52,8 @@ services:
     ports:
       - "1521:1521"
       - "5500:5500"
+    networks:
+      - tracing
     volumes:
       # The data volume to use for the database.
       # Has to be writable by the Unix "oracle" (uid: 54321) user inside the container!
@@ -50,6 +88,8 @@ services:
     ports:
       - "5672:5672"
       - "15672:15672"
+    networks:
+      - tracing
 
   jaeger:
     image: jaegertracing/all-in-one:1.33.0
@@ -66,9 +106,17 @@ services:
       - "9422:9411"
     environment:
       COLLECTOR_ZIPKIN_HOST_PORT: 9411
+    networks:
+      - tracing
 
 volumes:
   oracle_data:
     # external: true // Specify if you wish to create yourself
   jaeger_data:
     # external: true // Specify if you wish to create yourself
+  elastic_data:
+    # external: true // Specify if you wish to create yourself
+
+networks:
+  tracing:
+    driver: 'bridge'
